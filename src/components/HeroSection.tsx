@@ -12,7 +12,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ scrollY, onOpenProject
     <section className="relative min-h-screen w-full flex items-center justify-center pt-24 pb-16 overflow-hidden">
       {/* 3D Metallic Nexus AI floating in space */}
       <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none lg:justify-end lg:pr-12 xl:pr-24">
-        <div className="w-[320px] h-[320px] sm:w-[480px] sm:h-[480px] lg:w-[640px] lg:h-[640px] xl:w-[720px] xl:h-[720px] opacity-80 lg:opacity-100 pointer-events-auto transition-transform duration-700 ease-out">
+        <div className="w-[280px] h-[280px] sm:w-[440px] sm:h-[440px] lg:w-[640px] lg:h-[640px] xl:w-[720px] xl:h-[720px] opacity-75 lg:opacity-100 pointer-events-none lg:pointer-events-auto transition-transform duration-700 ease-out">
           <NexusSymbol3D scrollY={scrollY} />
         </div>
       </div>

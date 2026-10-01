@@ -8,38 +8,41 @@ interface NexusSymbol3DProps {
 
 export const NexusSymbol3D: React.FC<NexusSymbol3DProps> = ({ className = '', scrollY = 0 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const coreGroupRef = useRef<THREE.Group | null>(null);
   const targetRotationRef = useRef({ x: 0, y: 0 });
-  const mouseRef = useRef({ x: 0, y: 0 });
+  const isVisibleRef = useRef(true);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const width = container.clientWidth || 600;
-    const height = container.clientHeight || 600;
+    const isMobile = window.innerWidth < 768;
+    const width = container.clientWidth || 400;
+    const height = container.clientHeight || 400;
 
     // Scene setup
     const scene = new THREE.Scene();
-    sceneRef.current = scene;
 
     // Camera setup
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
     camera.position.z = 7;
 
-    // WebGL Renderer with transparency & high pixel ratio
+    // WebGL Renderer optimized for mobile & desktop performance
     let renderer: THREE.WebGLRenderer;
     try {
-      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: 'high-performance' });
+      renderer = new THREE.WebGLRenderer({
+        alpha: true,
+        antialias: !isMobile, // Disable MSAA on mobile for speed
+        powerPreference: 'high-performance',
+      });
     } catch {
       return;
     }
+
+    // Limit pixel ratio to 1.5 to keep GPU usage low on high-res phones
     renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.3;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
@@ -52,9 +55,8 @@ export const NexusSymbol3D: React.FC<NexusSymbol3DProps> = ({ className = '', sc
     // Materials
     const chromeMaterial = new THREE.MeshStandardMaterial({
       color: 0xeeeeff,
-      metalness: 0.96,
-      roughness: 0.12,
-      envMapIntensity: 1.5,
+      metalness: 0.95,
+      roughness: 0.15,
     });
 
     const darkTitaniumMaterial = new THREE.MeshStandardMaterial({
@@ -79,47 +81,27 @@ export const NexusSymbol3D: React.FC<NexusSymbol3DProps> = ({ className = '', sc
     const wireMesh = new THREE.Mesh(wireGeo, wireMat);
     coreGroup.add(wireMesh);
 
-    // 2. Intersecting Nexus Rings (Torus)
-    const ring1Geo = new THREE.TorusGeometry(2.1, 0.045, 32, 120);
+    // 2. Intersecting Nexus Rings
+    const ring1Geo = new THREE.TorusGeometry(2.1, 0.045, 16, isMobile ? 48 : 80);
     const ring1 = new THREE.Mesh(ring1Geo, chromeMaterial);
     ring1.rotation.x = Math.PI / 3;
     ring1.rotation.y = Math.PI / 6;
     coreGroup.add(ring1);
 
-    const ring2Geo = new THREE.TorusGeometry(2.35, 0.04, 32, 120);
+    const ring2Geo = new THREE.TorusGeometry(2.35, 0.04, 16, isMobile ? 48 : 80);
     const ring2 = new THREE.Mesh(ring2Geo, darkTitaniumMaterial);
     ring2.rotation.x = -Math.PI / 4;
     ring2.rotation.z = Math.PI / 3;
     coreGroup.add(ring2);
 
-    const ring3Geo = new THREE.TorusGeometry(2.6, 0.035, 32, 120);
+    const ring3Geo = new THREE.TorusGeometry(2.6, 0.035, 16, isMobile ? 48 : 80);
     const ring3 = new THREE.Mesh(ring3Geo, chromeMaterial);
     ring3.rotation.y = Math.PI / 2.5;
     ring3.rotation.x = Math.PI / 5;
     coreGroup.add(ring3);
 
-    // 3. Orbiting Nodes (The Nexus Vertices)
-    const nodeGeo = new THREE.SphereGeometry(0.1, 16, 16);
-    const nodeColors = [0x0066ff, 0x7c3aed, 0xff00d4, 0xff8a00, 0xffd700];
-    const nodes: THREE.Mesh[] = [];
-
-    nodeColors.forEach((color, i) => {
-      const nodeMat = new THREE.MeshStandardMaterial({
-        color,
-        emissive: color,
-        emissiveIntensity: 0.8,
-        metalness: 0.8,
-        roughness: 0.2,
-      });
-      const node = new THREE.Mesh(nodeGeo, nodeMat);
-      const angle = (i / nodeColors.length) * Math.PI * 2;
-      node.position.set(Math.cos(angle) * 2.1, Math.sin(angle) * 2.1, 0);
-      ring1.add(node);
-      nodes.push(node);
-    });
-
-    // 4. Stardust Particles around the Core
-    const particleCount = 200;
+    // 3. Stardust Particles (reduced count on mobile)
+    const particleCount = isMobile ? 60 : 140;
     const particleGeo = new THREE.BufferGeometry();
     const particlePositions = new Float32Array(particleCount * 3);
     const particleColors = new Float32Array(particleCount * 3);
@@ -133,7 +115,7 @@ export const NexusSymbol3D: React.FC<NexusSymbol3DProps> = ({ className = '', sc
     ];
 
     for (let i = 0; i < particleCount; i++) {
-      const radius = 2.4 + Math.random() * 2.2;
+      const radius = 2.4 + Math.random() * 2.0;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(Math.random() * 2 - 1);
 
@@ -151,57 +133,46 @@ export const NexusSymbol3D: React.FC<NexusSymbol3DProps> = ({ className = '', sc
     particleGeo.setAttribute('color', new THREE.BufferAttribute(particleColors, 3));
 
     const particleMat = new THREE.PointsMaterial({
-      size: 0.055,
+      size: 0.05,
       vertexColors: true,
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.75,
       blending: THREE.AdditiveBlending,
     });
     const particles = new THREE.Points(particleGeo, particleMat);
     coreGroup.add(particles);
 
-    // 5. Signature Lighting System
+    // 4. Lighting System
     const ambientLight = new THREE.AmbientLight(0x0a0c16, 2.5);
     scene.add(ambientLight);
 
-    // Electric Blue Key Light
-    const blueLight = new THREE.PointLight(0x0066ff, 12, 20);
+    const blueLight = new THREE.PointLight(0x0066ff, 10, 16);
     blueLight.position.set(4, 3, 4);
     scene.add(blueLight);
 
-    // Violet Accent Light
-    const violetLight = new THREE.PointLight(0x7c3aed, 10, 20);
+    const violetLight = new THREE.PointLight(0x7c3aed, 8, 16);
     violetLight.position.set(-4, -2, 3);
     scene.add(violetLight);
 
-    // Magenta Rim Light
-    const magentaLight = new THREE.PointLight(0xff00d4, 9, 20);
-    magentaLight.position.set(0, 4, -3);
-    scene.add(magentaLight);
-
-    // Gold/Orange Specular Light
-    const goldLight = new THREE.PointLight(0xff8a00, 8, 20);
+    const goldLight = new THREE.PointLight(0xff8a00, 6, 16);
     goldLight.position.set(3, -4, 2);
     scene.add(goldLight);
 
-    // Subtle white directional rim
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-    dirLight.position.set(0, 5, 5);
-    scene.add(dirLight);
-
-    // Mouse interaction listener
+    // Mouse listener (desktop only)
     const handleMouseMove = (e: MouseEvent) => {
+      if (window.innerWidth < 768) return;
       const rect = container.getBoundingClientRect();
       const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       const y = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
-      mouseRef.current = { x, y };
       targetRotationRef.current = {
-        x: y * 0.45,
-        y: x * 0.45,
+        x: y * 0.35,
+        y: x * 0.35,
       };
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
+    if (!isMobile) {
+      window.addEventListener('mousemove', handleMouseMove);
+    }
 
     // Resize handler
     const handleResize = () => {
@@ -215,42 +186,42 @@ export const NexusSymbol3D: React.FC<NexusSymbol3DProps> = ({ className = '', sc
 
     window.addEventListener('resize', handleResize);
 
+    // Intersection Observer to PAUSE rendering when scrolled out of view
+    // This provides massive battery and performance savings on phones!
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          isVisibleRef.current = entry.isIntersecting;
+        });
+      },
+      { threshold: 0.05 }
+    );
+    observer.observe(container);
+
     // Animation Loop
     let animationFrameId: number;
     let clock = new THREE.Clock();
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
+
+      // Only render if element is visible on screen!
+      if (!isVisibleRef.current) return;
+
       const elapsedTime = clock.getElapsedTime();
 
-      // Continuous subtle ambient spin
       if (coreGroup) {
-        coreGroup.rotation.y += 0.004;
-        coreGroup.rotation.x = Math.sin(elapsedTime * 0.4) * 0.08 + targetRotationRef.current.x * 0.3;
-        coreGroup.rotation.z = Math.cos(elapsedTime * 0.3) * 0.05;
+        coreGroup.rotation.y += 0.0035;
+        coreGroup.rotation.x = Math.sin(elapsedTime * 0.4) * 0.06 + targetRotationRef.current.x * 0.2;
 
-        // Interactive mouse ease
-        coreGroup.rotation.y += targetRotationRef.current.y * 0.015;
+        ring1.rotation.z += 0.005;
+        ring2.rotation.y -= 0.006;
+        ring3.rotation.x += 0.004;
 
-        // Individual orbital ring speeds
-        ring1.rotation.z += 0.006;
-        ring2.rotation.y -= 0.007;
-        ring3.rotation.x += 0.005;
-
-        // Core facet shimmer
         coreMesh.rotation.y -= 0.002;
-        coreMesh.rotation.x += 0.003;
-        wireMesh.rotation.y += 0.005;
+        wireMesh.rotation.y += 0.004;
 
-        // Stardust slow breath
-        particles.rotation.y = elapsedTime * 0.03;
-        particles.rotation.z = Math.sin(elapsedTime * 0.2) * 0.1;
-
-        // Orbiting lights motion
-        blueLight.position.x = Math.sin(elapsedTime * 0.8) * 4.5;
-        blueLight.position.z = Math.cos(elapsedTime * 0.8) * 4.5;
-        magentaLight.position.y = Math.cos(elapsedTime * 0.6) * 4;
-        goldLight.position.x = Math.cos(elapsedTime * 0.7) * 4;
+        particles.rotation.y = elapsedTime * 0.02;
       }
 
       renderer.render(scene, camera);
@@ -260,7 +231,10 @@ export const NexusSymbol3D: React.FC<NexusSymbol3DProps> = ({ className = '', sc
 
     return () => {
       cancelAnimationFrame(animationFrameId);
-      window.removeEventListener('mousemove', handleMouseMove);
+      observer.disconnect();
+      if (!isMobile) {
+        window.removeEventListener('mousemove', handleMouseMove);
+      }
       window.removeEventListener('resize', handleResize);
       if (container && renderer.domElement) {
         container.removeChild(renderer.domElement);
@@ -271,18 +245,17 @@ export const NexusSymbol3D: React.FC<NexusSymbol3DProps> = ({ className = '', sc
 
   // Update rotation based on scroll depth
   useEffect(() => {
-    if (coreGroupRef.current) {
-      const scrollFactor = scrollY * 0.002;
-      coreGroupRef.current.position.y = -scrollY * 0.0008;
-      coreGroupRef.current.rotation.y += scrollFactor * 0.05;
-      coreGroupRef.current.scale.setScalar(Math.max(0.7, 1 - scrollY * 0.0003));
+    if (coreGroupRef.current && isVisibleRef.current) {
+      const scrollFactor = scrollY * 0.0015;
+      coreGroupRef.current.position.y = -scrollY * 0.0006;
+      coreGroupRef.current.rotation.y += scrollFactor * 0.04;
     }
   }, [scrollY]);
 
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-full cursor-grab active:cursor-grabbing select-none pointer-events-auto ${className}`}
+      className={`relative w-full h-full select-none pointer-events-none lg:pointer-events-auto touch-pan-y ${className}`}
       aria-label="Interactive 3D Metallic NEXUS AI Core Symbol"
     />
   );
