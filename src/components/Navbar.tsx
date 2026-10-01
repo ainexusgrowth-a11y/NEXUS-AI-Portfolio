@@ -22,7 +22,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenProjectModal }) => {
     { label: 'Philosophy', href: '#statement' },
     { label: 'Services', href: '#services' },
     { label: 'Work', href: '#work' },
-    { label: 'Team', href: '#team' },
+    { label: 'Leadership', href: '#leadership' },
     { label: 'Process', href: '#process' },
     { label: 'Contact', href: '#contact' },
   ];
